@@ -46,6 +46,7 @@ export function ajaxOData(data, callback, settings) {
     }
     var oDataSrc = settings.oInit.oDataSrc ? settings.oInit.oDataSrc : 'value';
     var oDataCount = settings.oInit.oDataCount ? settings.oInit.oDataCount : '@odata.count';
+    var oDataSelect = settings.oInit.oDataSelect ? settings.oInit.oDataSelect : [];
 
     // Get column names for select
     $.each(settings.aoColumns, function (i, value) {
@@ -59,6 +60,9 @@ export function ajaxOData(data, callback, settings) {
             request.$select += "," + fieldName;
         }
     });
+    if (settings.oInit.oDataSelect) {
+        request.$select += "," + settings.oInit.oDataSelect.join(',');
+    }
 
     // Filters and ordering on server side if requested
     if (settings.oFeatures.bServerSide) {
