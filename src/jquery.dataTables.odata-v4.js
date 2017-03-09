@@ -1,39 +1,39 @@
 /*
---------------------------------------------------------------------------
-DATATABLES ODATA V4 ADDON
---------------------------------------------------------------------------
-Enables jQuery DataTables to read data from an OData service
+ --------------------------------------------------------------------------
+ DATATABLES ODATA V4 ADDON
+ --------------------------------------------------------------------------
+ Enables jQuery DataTables to read data from an OData service
 
-Version: 1.0.3
-Author: Michele Bersini
-Copyright 2016 Michele Bersini, all rights reserved.
+ Version: 1.0.4
+ Author: Michele Bersini, zgldh
+ Copyright 2016 Michele Bersini, all rights reserved.
 
-This source file is free software, licensed under 
-MIT license (http://datatables.net/license/mit)
+ This source file is free software, licensed under
+ MIT license (http://datatables.net/license/mit)
 
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the "Software"), 
-to deal in the Software without restriction, including without limitation 
-the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-and/or sell copies of the Software, and to permit persons to whom the 
-Software is furnished to do so, subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in 
-all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL 
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-DEALINGS IN THE SOFTWARE.
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
 
-*/
+ */
 
-function ajaxOData(data, callback, settings) {
-    
-    var getColumnFieldName = function(column) {
+export function ajaxOData(data, callback, settings) {
+
+    var getColumnFieldName = function (column) {
         return column.name || column.data;
     }
 
@@ -44,6 +44,8 @@ function ajaxOData(data, callback, settings) {
     if (oDataViaJsonp) {
         request.$callback = "odatatable_" + (settings.oFeatures.bServerSide ? data.draw : ("load_" + Math.floor((Math.random() * 1000) + 1)));
     }
+    var oDataSrc = settings.oInit.oDataSrc ? settings.oInit.oDataSrc : 'value';
+    var oDataCount = settings.oInit.oDataCount ? settings.oInit.oDataCount : '@odata.count';
 
     // Get column names for select
     $.each(settings.aoColumns, function (i, value) {
@@ -73,6 +75,7 @@ function ajaxOData(data, callback, settings) {
         $.each(settings.aoColumns, function (i, value) {
             var fieldName = getColumnFieldName(value);
             var columnFilter = data.columns[i].search.value;
+            columnFilter = columnFilter == "null" ? null : columnFilter;
             var columnType = value.type || "string";
 
             if ((!globalFilter && !columnFilter) || !value.bSearchable || !fieldName)
@@ -89,19 +92,25 @@ function ajaxOData(data, callback, settings) {
                         columnFilters.push("indexof(tolower(" + fieldName + "), '" + columnFilter.toLowerCase() + "') gt -1");
                     }
                     break;
+                case "bool":
+                    if (columnFilter !== undefined && columnFilter !== null) {
+                        columnFilter = !!columnFilter;
+                        columnFilters.push(fieldName + " eq " + columnFilter);
+                    }
+                    break;
 
                 case "date":
                 case "num":
                 case "numeric":
                 case "number":
-                    var parseValue = function(val) {
-                        var f = Globalize.parseFloat(val);
+                    var parseValue = function (val) {
+                        var f = parseFloat(val);
                         if (isNaN(f)) return null;
                         return f;
                     }
                     if (columnType === "date") {
-                        parseValue = function(val) {
-                            var d = Globalize.parseDate(val);
+                        parseValue = function (val) {
+                            var d = new Date(val);
                             if (!d) return null;
                             return d.toISOString();
                         }
@@ -140,12 +149,16 @@ function ajaxOData(data, callback, settings) {
                     // Numeric and date filters are supported also in form lower~upper
                     if (columnFilter && columnFilter !== "~") {
                         var colFilter = processRange(columnFilter);
-                        if (colFilter) { columnFilters.push(colFilter); }
+                        if (colFilter) {
+                            columnFilters.push(colFilter);
+                        }
                     }
 
                     if (globalFilter && globalFilter !== "~") {
                         var globFilter = processRange(globalFilter);
-                        if (globFilter) { filters.push(globFilter); }
+                        if (globFilter) {
+                            filters.push(globFilter);
+                        }
                     }
 
                     break;
@@ -166,7 +179,7 @@ function ajaxOData(data, callback, settings) {
         }
 
         var orderBy = [];
-        $.each(data.order, function(i, value) {
+        $.each(data.order, function (i, value) {
             orderBy.push(getColumnFieldName(settings.aoColumns[value.column]) + " " + value.dir);
         });
 
@@ -182,19 +195,19 @@ function ajaxOData(data, callback, settings) {
     }
 
     var jqXHR = $.ajax(jQuery.extend({}, settings.oInit.ajax, {
-        "url": settings.oInit.oDataUrl,
-        "data": request,
-        "jsonp": oDataViaJsonp,
-        "dataType": oDataViaJsonp ? "jsonp" : "json",
+        "url"          : settings.oInit.oDataUrl,
+        "data"         : request,
+        "jsonp"        : oDataViaJsonp,
+        "dataType"     : oDataViaJsonp ? "jsonp" : "json",
         "jsonpCallback": data["$callback"],
-        "cache": false,
-        "success": function (ajaxData) {
+        "cache"        : false,
+        "success"      : function (ajaxData) {
             var dataSource = {
                 draw: parseInt(data.draw) // Cast for security reason
             };
 
-            dataSource.data = ajaxData.value;
-            var recordCount = ajaxData["@odata.count"];
+            dataSource.data = ajaxData[oDataSrc];
+            var recordCount = ajaxData[oDataCount];
 
             if (recordCount != null) {
                 dataSource.recordsFiltered = recordCount;
@@ -209,11 +222,11 @@ function ajaxOData(data, callback, settings) {
 
             callback(dataSource);
         },
-        "error": function (jqXHR, textStatus, errorThrown) {
-        	settings.oApi._fnCallbackFire(settings, null, 'xhr', [settings, null, settings.jqXHR]);
-        	settings.oApi._fnProcessingDisplay(settings, false);
+        "error"        : function (jqXHR, textStatus, errorThrown) {
+            settings.oApi._fnCallbackFire(settings, null, 'xhr', [settings, null, settings.jqXHR]);
+            settings.oApi._fnProcessingDisplay(settings, false);
         }
     }));
-    
+
     return jqXHR;
 };
